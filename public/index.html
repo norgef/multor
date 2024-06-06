@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multor</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    const socket = io();
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let players = {};
+    const keys = {};
+
+    socket.on('state', (serverPlayers) => {
+        players = serverPlayers;
+    });
+
+    document.addEventListener('keydown', (event) => {
+        keys[event.key] = true;
+    });
+
+    document.addEventListener('keyup', (event) => {
+        keys[event.key] = false;
+    });
+
+    function updateMovement() {
+        let direction = null;
+
+        if (keys['ArrowLeft'] && keys['ArrowUp']) {
+            direction = 'up-left';
+        } else if (keys['ArrowLeft'] && keys['ArrowDown']) {
+            direction = 'down-left';
+        } else if (keys['ArrowRight'] && keys['ArrowUp']) {
+            direction = 'up-right';
+        } else if (keys['ArrowRight'] && keys['ArrowDown']) {
+            direction = 'down-right';
+        } else if (keys['ArrowLeft']) {
+            direction = 'left';
+        } else if (keys['ArrowRight']) {
+            direction = 'right';
+        } else if (keys['ArrowUp']) {
+            direction = 'up';
+        } else if (keys['ArrowDown']) {
+            direction = 'down';
+        }
+
+        if (direction) {
+            socket.emit('move', direction);
+        }
+    }
+
+    function gameLoop() {
+        updateMovement();
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (const id in players) {
+            const player = players[id];
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.size, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+</script>
+</body>
+</html>
