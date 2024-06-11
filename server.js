@@ -58,6 +58,8 @@ io.on('connection', (socket) => {
     });
 });
 
+// gameloop
+
 function gameLoop() {
     const updatedPlayers = { ...players };
 
