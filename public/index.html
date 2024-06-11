@@ -4,34 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multor</title>
-    <style>
-        canvas {
-            border: 1px solid black;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="joinScreen">
+    <input type="text" id="playerName" placeholder="Enter your name" />
+    <input type="color" id="playerColor" value="#ff0000" />
+    <button id="joinButton">Join</button>
+</div>
 <canvas id="gameCanvas" width="800" height="600"></canvas>
+<div id="playerList"></div>
 <script src="/socket.io/socket.io.js"></script>
 <script>
     const socket = io();
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    const joinScreen = document.getElementById('joinScreen');
+    const playerNameInput = document.getElementById('playerName');
+    const playerColorInput = document.getElementById('playerColor');
+    const joinButton = document.getElementById('joinButton');
+    const playerListDiv = document.getElementById('playerList');
 
     let players = {};
     const keys = {};
+    let currentDirection = null;
+
+    joinButton.addEventListener('click', () => {
+        const name = playerNameInput.value;
+        const color = playerColorInput.value;
+
+        if (name) {
+            socket.emit('join', { name, color });
+            joinScreen.style.display = 'none';
+        }
+    });
 
     socket.on('state', (serverPlayers) => {
         players = serverPlayers;
+        updatePlayerList();
     });
 
     document.addEventListener('keydown', (event) => {
         keys[event.key] = true;
+        updateMovement();
     });
 
     document.addEventListener('keyup', (event) => {
         keys[event.key] = false;
+        updateMovement();
     });
 
     function updateMovement() {
@@ -55,14 +76,28 @@
             direction = 'down';
         }
 
-        if (direction) {
-            socket.emit('move', direction);
+        if (direction !== currentDirection) {
+            currentDirection = direction;
+            if (direction) {
+                socket.emit('move', direction);
+            } else {
+                socket.emit('move', 'stop');
+            }
+        }
+    }
+
+    function updatePlayerList() {
+        playerListDiv.innerHTML = '';
+        for (const id in players) {
+            const player = players[id];
+            const playerItem = document.createElement('div');
+            playerItem.textContent = player.name;
+            playerItem.style.color = player.color;
+            playerListDiv.appendChild(playerItem);
         }
     }
 
     function gameLoop() {
-        updateMovement();
-
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         for (const id in players) {

@@ -26,19 +26,30 @@ const directions = {
 io.on('connection', (socket) => {
     console.log('a user connected');
 
-    players[socket.id] = {
-        x: Math.random() * 800,
-        y: Math.random() * 600,
-        size: 20,
-        color: '#' + Math.floor(Math.random()*16777215).toString(16),
-        direction: null,
-        speed: 0 // Initialize speed to zero
-    };
+    socket.on('join', ({ name, color }) => {
+        players[socket.id] = {
+            x: Math.random() * 800,
+            y: Math.random() * 600,
+            size: 20,
+            color: color, // Hier wird die Farbe des Spielers auf die ausgewählte Farbe gesetzt
+            direction: null,
+            speed: 0,
+            vx: 0,
+            vy: 0,
+            maxSpeed: 5,
+            friction: 0.85,
+            acceleration: 0.2,
+            inertia: 0.1 // Factor to control direction smoothing
+        };
+    });
 
     socket.on('move', (direction) => {
         const player = players[socket.id];
-        player.direction = direction;
-        player.speed = 2; // Set speed when a movement command is received
+        if (direction === 'stop') {
+            player.direction = null;
+        } else {
+            player.direction = direction;
+        }
     });
 
     socket.on('disconnect', () => {
@@ -48,25 +59,79 @@ io.on('connection', (socket) => {
 });
 
 function gameLoop() {
-    for (const id in players) {
-        const player = players[id];
-        if (player.direction) {
-            const dir = directions[player.direction];
-            player.x += dir.x * player.speed; // Adjust speed
-            player.y += dir.y * player.speed; // Adjust speed
-        } else {
-            // Reduce speed gradually until it reaches zero
-            player.speed *= 0.9; // Adjust the factor for desired deceleration rate
-            if (player.speed < 0.01) {
-                player.speed = 0; // Set speed to zero when it becomes very small
+    const updatedPlayers = { ...players };
+
+    for (const id1 in updatedPlayers) {
+        const player1 = updatedPlayers[id1];
+        for (const id2 in updatedPlayers) {
+            if (id1 !== id2) {
+                const player2 = updatedPlayers[id2];
+                if (checkCollision(player1, player2)) {
+                    if (player1.size === player2.size) {
+                        player1.size += 5
+                    }
+                }
             }
         }
     }
-    io.emit('state', players);
-    setTimeout(gameLoop, 1000 / 60); // 60 FPS
+
+    for (const id in updatedPlayers) {
+        const player = updatedPlayers[id];
+        if (player.direction) {
+            const dir = directions[player.direction];
+            player.vx += dir.x * player.acceleration;
+            player.vy += dir.y * player.acceleration;
+
+            // Clamp speed
+            const speed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
+            if (speed > player.maxSpeed) {
+                const scalingFactor = player.maxSpeed / speed;
+                player.vx *= scalingFactor;
+                player.vy *= scalingFactor;
+            }
+        } else {
+            player.vx *= player.friction;
+            player.vy *= player.friction;
+        }
+
+        player.x += player.vx;
+        player.y += player.vy;
+
+        // Update the speed for the next frame
+        player.speed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
+
+        if (player.speed < 0.01) {
+            player.speed = 0;
+            player.vx = 0;
+            player.vy = 0;
+        }
+    }
+
+    for (const id in updatedPlayers) {
+        players[id] = updatedPlayers[id];
+    }
+
+    io.emit('state', updatedPlayers);
+
+    setTimeout(gameLoop, 1000 / 60);
 }
 
+// collisionhandling
+
+function checkCollision(player1, player2) {
+    const dx = player1.x - player2.x;
+    const dy = player1.y - player2.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance < player1.size + player2.size;
+}
+
+// initialization
+
 gameLoop();
+
+
+
+// other
 
 server.listen(port, () => {
     console.log(`Server running on port ${port}`);
