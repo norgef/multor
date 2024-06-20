@@ -28,8 +28,9 @@ io.on('connection', (socket) => {
 
     socket.on('join', ({ name, color }) => {
         players[socket.id] = {
-            x: Math.random() * 800,
-            y: Math.random() * 600,
+            name: name,
+            x: Math.random() * 1200,
+            y: Math.random() * 800,
             size: 20,
             color: color, // Hier wird die Farbe des Spielers auf die ausgewählte Farbe gesetzt
             direction: null,
@@ -41,6 +42,7 @@ io.on('connection', (socket) => {
             acceleration: 0.2,
             inertia: 0.1 // Factor to control direction smoothing
         };
+        io.emit('state', players); // Sende den aktualisierten Zustand an alle Clients
     });
 
     socket.on('move', (direction) => {
@@ -70,7 +72,8 @@ function gameLoop() {
                 const player2 = updatedPlayers[id2];
                 if (checkCollision(player1, player2)) {
                     if (player1.size === player2.size) {
-                        player1.size += 5
+                        player1.size += player2.size
+                        player2.size = 5;
                     }
                 }
             }
