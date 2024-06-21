@@ -102,6 +102,13 @@ function gameLoop() {
         player.x += player.vx;
         player.y += player.vy;
 
+        // Limit to the edges of the canvas
+
+        if (player.x < player.size) player.x = player.size;
+        if (player.y < player.size) player.y = player.size;
+        if (player.x > 1200 - player.size) player.x = 1200 - player.size;
+        if (player.y > 800 - player.size) player.y = 800 - player.size;
+
         // Update the speed for the next frame
         player.speed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
 
